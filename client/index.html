@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hừng Đông</title>
+  <link rel="icon" href="data:," />
+  <style>
+    :root { --bg:#0a0f14cc; --line:#2a3a44; --acc:#4ee6c0; --warn:#ffb454; --txt:#e6eef0; --mut:#8fa3ad; }
+    * { box-sizing: border-box; }
+    html, body { margin:0; height:100%; overflow:hidden; background:#05060b; color:var(--txt); font:14px/1.5 "Segoe UI", Arial, sans-serif; }
+    canvas#c { position:fixed; inset:0; width:100%; height:100%; display:block; }
+    .hud { position:fixed; pointer-events:none; }
+    .card { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:10px 14px; }
+    #obj { top:16px; left:16px; max-width:380px; }
+    #obj .t { color:var(--acc); font-size:11px; letter-spacing:1.5px; font-weight:700; }
+    #obj .d { font-size:15px; margin-top:2px; }
+    #bag { top:16px; right:16px; text-align:right; min-width:220px; }
+    #bag .row { color:var(--mut); font-size:12px; }
+    #prompt { bottom:120px; left:50%; transform:translateX(-50%); border-color:var(--acc); display:none; }
+    #prompt kbd, .help kbd { background:#1c2a31; border:1px solid var(--line); border-bottom-width:2px; border-radius:4px; padding:0 6px; font-weight:700; color:var(--acc); }
+    #radio { bottom:16px; left:16px; max-width:460px; }
+    #radio p { margin:3px 0; font-size:13px; }
+    #radio .from { color:var(--warn); font-weight:700; }
+    #radio p.old { opacity:.55; }
+    #rad { bottom:16px; right:16px; text-align:right; font-size:12px; color:var(--mut); display:none; }
+    #rad b { color:var(--txt); font-size:15px; }
+    .help { bottom:16px; left:50%; transform:translateX(-50%); font-size:12px; color:var(--mut); }
+    .panel { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); width:min(640px, 94vw); max-height:88vh; overflow:auto; background:#0c141bf2; border:1px solid var(--line); border-radius:12px; padding:18px 20px; display:none; z-index:10; box-shadow:0 20px 60px #000a; }
+    .panel h2 { margin:0 0 4px; font-size:18px; }
+    .panel .sub { color:var(--mut); font-size:12px; margin-bottom:12px; }
+    .panel .x { position:absolute; top:10px; right:12px; }
+    button { font:600 13px "Segoe UI", Arial; background:#16262c; color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:7px 12px; cursor:pointer; }
+    button:hover:not(:disabled) { border-color:var(--acc); }
+    button:disabled { opacity:.4; cursor:not-allowed; }
+    button.pri { background:var(--acc); color:#04201a; border-color:var(--acc); }
+    textarea, input, select { width:100%; background:#0a1116; color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:8px 10px; font:14px "Segoe UI", Arial; }
+    #chatlog { background:#0a1116; border:1px solid var(--line); border-radius:8px; padding:10px 12px; min-height:70px; max-height:160px; overflow:auto; margin-bottom:10px; }
+    #chatlog p { margin:4px 0; }
+    #chatlog .me { color:var(--mut); }
+    #chatlog .mica b { color:var(--acc); }
+    .tag { display:inline-block; font-size:10px; font-weight:700; padding:1px 6px; border-radius:99px; margin-left:6px; background:#3a2a10; color:var(--warn); }
+    .tag.ai { background:#0f3a30; color:var(--acc); }
+    .opts { display:grid; gap:8px; margin:10px 0; }
+    .opt { border:1px solid var(--line); border-radius:8px; padding:9px 12px; cursor:pointer; }
+    .opt.sel { border-color:var(--acc); background:#0f2a26; }
+    .opt .h { font-weight:700; }
+    .opt .m { color:var(--mut); font-size:12px; }
+    .opt .r { font-size:13px; margin-top:2px; }
+    .row2 { display:flex; gap:8px; align-items:center; margin:8px 0; flex-wrap:wrap; }
+    .row2 > * { flex:1; }
+    .row2 > button { flex:0 0 auto; }
+    table { width:100%; border-collapse:collapse; font-size:13px; margin:8px 0; }
+    th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+    th { color:var(--mut); font-weight:600; font-size:12px; }
+    .note { color:var(--mut); font-size:12px; margin-top:8px; }
+    #overlay { position:fixed; inset:0; background:#05080cf0; z-index:20; display:none; align-items:center; justify-content:center; text-align:center; padding:20px; }
+    #overlay .box { max-width:560px; }
+    #overlay h1 { font:500 44px Georgia, serif; margin:0 0 6px; color:#bff3e4; letter-spacing:.04em; }
+    #overlay p { color:var(--mut); }
+    #paused { top:50%; left:50%; transform:translate(-50%,-50%); font-size:28px; letter-spacing:6px; display:none; }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <div class="hud card" id="obj"><div class="t">NHIỆM VỤ</div><div class="d" id="objText"></div></div>
+  <div class="hud card" id="bag"><div id="bagText"></div><div class="row" id="stockText"></div></div>
+  <div class="hud card" id="ctrl" style="top:16px;left:50%;transform:translateX(-50%);pointer-events:auto;display:flex;gap:8px;padding:6px 8px"><button id="viewBtn">Góc nhìn: Thứ 3 (V)</button><button id="qBtn">Đồ họa: Tự động</button></div>
+  <div id="cross" class="hud" style="top:50%;left:50%;transform:translate(-50%,-50%);display:none;text-align:center"><div style="width:6px;height:6px;border-radius:50%;background:#e6eef0;box-shadow:0 0 0 2px #000a;margin:0 auto"></div><div id="crossTip" style="margin:18px auto 0;display:inline-block;padding:3px 10px;border-radius:99px;background:#000a;font-size:12px;color:#cfe0e4">Click vào màn hình để xoay bằng chuột</div></div>
+  <div class="hud card" id="prompt"></div>
+  <div class="hud card" id="radio"></div>
+  <div class="hud card" id="rad"></div>
+  <div class="hud card help"><kbd>WASD</kbd>/click chuột đi · <kbd>V</kbd> góc nhìn thứ 1 · <kbd>Shift</kbd> chạy · <kbd>E</kbd> tương tác · <kbd>Q</kbd> đặt đồ xuống · <kbd>P</kbd> tạm dừng</div>
+  <div class="hud" id="paused">TẠM DỪNG</div>
+
+  <div class="panel" id="chat">
+    <button class="x" data-close="chat">Đóng</button>
+    <h2>MICA</h2>
+    <div class="sub">Hỏi kiến thức hoặc nhờ thiết kế vòm che chắn. Hỏi không tự tiêu vật tư, chỉ khi bạn bấm Xây mới thi công.</div>
+    <div id="chatlog"></div>
+    <textarea id="chatIn" rows="2" placeholder="Ví dụ: Tạo một vòm che chắn, tôi muốn tiết kiệm vật liệu để còn phát triển trạm."></textarea>
+    <div class="row2"><button class="pri" id="chatSend">Gửi cho MICA</button>
+      <span style="flex:1;color:var(--mut);font-size:12px">Hoặc chọn nhanh:</span>
+      <button data-tpl="10">Mẫu 10 g/cm²</button><button data-tpl="20">Mẫu 20 g/cm²</button></div>
+    <div class="opts" id="opts"></div>
+    <div class="row2"><select id="manual"></select><button id="previewBtn">Xem trước</button></div>
+    <div class="row2"><input id="nameIn" maxlength="24" placeholder="Tên công trình (vd: Mầm 01)" /><button class="pri" id="buildBtn">Xây phương án đã chọn</button></div>
+    <div class="note" id="buildNote"></div>
+  </div>
+
+  <div class="panel" id="book">
+    <button class="x" data-close="book">Đóng</button>
+    <h2>Màn hình bệ nghiên cứu</h2>
+    <div class="sub" id="bookSub"></div>
+    <div class="row2"><button id="recBtn">Bật ghi</button><button id="cutBtn">Xem cắt lớp</button><button class="pri" id="handBtn">Bàn giao</button></div>
+    <table><thead><tr><th>Phiên bản</th><th>Tên</th><th>g/cm²</th><th>GCR mSv/ngày</th><th>Vỏ (kg)</th><th>Đã ghi</th></tr></thead><tbody id="vers"></tbody></table>
+    <div class="note">Kết quả thuộc mô hình cơ thể tham chiếu (phantom nam ICRP) với kịch bản GCR cố định ở cực tiểu hoạt động Mặt Trời. Không phải liều của nhân vật và không chứng minh vòm đủ điều kiện làm nơi ở. SEP chưa được mô phỏng theo thời gian. Tắt ghi không làm bức xạ ngừng tác động trong mô hình.</div>
+  </div>
+
+  <div id="overlay"><div class="box" id="ovBox"></div></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
